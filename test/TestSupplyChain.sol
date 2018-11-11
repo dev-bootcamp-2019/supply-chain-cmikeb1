@@ -7,6 +7,8 @@ import "../contracts/SupplyChain.sol";
 contract TestSupplyChain {
 
     // Test for failing conditions in this contracts
+    SupplyChain supplyChain = SupplyChain(DeployedAddresses.SupplyChain());
+
     // test that every modifier is working
 
     // buyItem
