@@ -9,25 +9,89 @@ contract TestSupplyChain {
     // Test for failing conditions in this contracts
     SupplyChain supplyChain = SupplyChain(DeployedAddresses.SupplyChain());
 
-    // test that every modifier is working
+    // Truffle will send the TestContract one Ether after deploying the contract.
+    uint public initialBalance = 1 ether;
 
-    // buyItem
+    function testCanListItem() public {
+        uint itemPrice = .1 ether;
+        string memory itemName = "firstItem";
 
-    // test for failure if user does not send enough funds
-    // test for purchasing an item that is not for Sale
+        supplyChain.addItem(itemName, itemPrice);
+
+        (string memory name,
+        uint sku,
+        uint price,
+        uint state,
+        address seller,
+        address buyer) = supplyChain.fetchItem(0);
+
+        Assert.equal(sku, 0, "Incorrect sku on added item.");
+        Assert.equal(name, itemName, "Incorrect name on added item.");
+        Assert.equal(price, itemPrice, "Incorrect price on added item.");
+        Assert.equal(state, 0, "Incorrect state on added item.");
+        Assert.equal(seller, address(this), "Incorrect seller on added item.");
+        Assert.equal(buyer, address(0), "Incorrect buyer on added item.");
+    }
+
+    function testSecondListedItemSkuIncrementsByOne() public {
+        uint itemPrice = .2 ether;
+        string memory itemName = "secondItem";
+
+        supplyChain.addItem(itemName, itemPrice);
+
+        (string memory name,
+        uint sku,
+        uint price,
+        uint state,
+        address seller,
+        address buyer) = supplyChain.fetchItem(1);
+
+        Assert.equal(name, itemName, "Incorrect name");
+        Assert.equal(sku, 1, "Incorrect sku");
+    }
 
 
-    // shipItem
+    function testModifierForSale_unlistedFails() public {
+        uint itemPrice = 100;
 
-    // test for calls that are made by not the seller
-    // test for trying to ship an item that is not marked Sold
+        RevertWrapper revertWrapper = new RevertWrapper(address(supplyChain));
 
-    // receiveItem
+        SupplyChain(address(revertWrapper)).buyItem.value(150)(0);
 
-    // test calling the function from an address that is not the buyer
-    // test calling the function on an item not marked Shipped
+        bool r = revertWrapper.execute.gas(200000)();
 
-     
+        Assert.isFalse(r, "Selling should fail if item is not listed.");
+    }
 
+    function testModifierForSale_soldCannotBeSold() public {
+        uint itemPrice = 100;
+        string memory itemName = "itemname";
 
+        supplyChain.addItem(itemName, itemPrice);
+
+        RevertWrapper revertWrapper = new RevertWrapper(address(supplyChain));
+
+        SupplyChain(address(revertWrapper)).buyItem.value(150)(0);
+
+        bool r = revertWrapper.execute.gas(200000)();
+
+        Assert.isFalse(r, "Selling should fail if item is not listed.");
+    }
+}
+
+contract RevertWrapper {
+    address public target;
+    bytes data;
+
+    constructor (address _target) public {
+        target = _target;
+    }
+
+    function() public payable {
+        data = msg.data;
+    }
+
+    function execute() public payable returns (bool) {
+        return target.call(data);
+    }
 }
